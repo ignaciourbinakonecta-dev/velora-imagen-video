@@ -2,7 +2,10 @@ name: Construir imagen Velora Video
 on:
   workflow_dispatch:
   push:
-    paths: ["Dockerfile", "velora_nodo.py", ".github/workflows/build.yml"]
+    paths: ["Dockerfile", ".github/workflows/build.yml"]
+concurrency:
+  group: build
+  cancel-in-progress: true
 permissions:
   contents: read
   packages: write
@@ -27,9 +30,9 @@ jobs:
       - name: Login GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Construir
-        run: DOCKER_BUILDKIT=0 docker build -t ghcr.io/${{ github.repository_owner }}/velora-video:wan22-v1 .
+        run: DOCKER_BUILDKIT=0 docker build -t ghcr.io/${{ github.repository_owner }}/velora-video:wan22-v2 .
       - name: Espacio tras construir
         run: df -h / /mnt && docker images
       - name: Publicar
         run: |
-          for i in 1 2 3; do docker push ghcr.io/${{ github.repository_owner }}/velora-video:wan22-v1 && exit 0; sleep 30; done; exit 1
+          for i in 1 2 3; do docker push ghcr.io/${{ github.repository_owner }}/velora-video:wan22-v2 && exit 0; sleep 30; done; exit 1
