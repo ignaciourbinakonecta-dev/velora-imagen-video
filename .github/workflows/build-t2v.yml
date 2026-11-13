@@ -1,0 +1,38 @@
+name: Construir imagen Velora Video T2V
+on:
+  workflow_dispatch:
+  push:
+    paths: ["Dockerfile.t2v", ".github/workflows/build-t2v.yml"]
+concurrency:
+  group: build-t2v
+  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: Liberar disco del runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost /usr/share/swift /usr/local/.ghcup || true
+          sudo docker image prune -af || true
+          df -h / /mnt
+      - name: Docker en el disco grande (/mnt)
+        run: |
+          sudo systemctl stop docker docker.socket
+          echo '{"data-root":"/mnt/docker"}' | sudo tee /etc/docker/daemon.json
+          sudo mkdir -p /mnt/docker
+          sudo systemctl start docker
+          docker info | grep -i "root dir"
+      - name: Login GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Construir
+        run: DOCKER_BUILDKIT=0 docker build -f Dockerfile.t2v -t ghcr.io/${{ github.repository_owner }}/velora-video:wan22-t2v-v1 .
+      - name: Espacio tras construir
+        run: df -h / /mnt && docker images
+      - name: Publicar
+        run: |
+          for i in 1 2 3; do docker push ghcr.io/${{ github.repository_owner }}/velora-video:wan22-t2v-v1 && exit 0; sleep 30; done; exit 1
